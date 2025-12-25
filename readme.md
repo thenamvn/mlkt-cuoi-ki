@@ -370,3 +370,36 @@ def find_threshold_by_recall(y_true, y_proba, target_recall=0.90):
 ```
 
 **Kết luận:** Threshold 96% chứng tỏ Feature Engineering của bạn (đặc biệt là các feature so sánh hành vi) cực kỳ hiệu quả, khiến mô hình rất tự tin khi bắt gian lận. Bạn có thể yên tâm sử dụng.
+
+
+# Lí giải tối ưu tốc độ tính toán và xử lí imbalance
+Dưới đây là 2 "thủ phạm" chính khiến đoạn code mẫu kia chậm hơn code của bạn hàng chục, thậm chí hàng trăm lần:
+
+### 1. "Thủ phạm" lớn nhất: SMOTE (Imbalanced-learn) vs. Class Weights
+*   **Code mẫu (Chậm):** Sử dụng `SMOTETomek`.
+    ```python
+    # Dòng này là "tử huyệt" về tốc độ trên dữ liệu lớn
+    smote = SMOTETomek(random_state=42)
+    X_train_resampled, y_train_resampled = smote.fit_resample(X_train_scaled, y_train)
+    ```
+    *   **Cơ chế:** Nó phải tính toán khoảng cách giữa các điểm dữ liệu (K-Nearest Neighbors) để sinh ra các điểm dữ liệu giả (fake data) nhằm cân bằng số lượng Fraud và Normal.
+    *   **Hậu quả:** Với dữ liệu hàng trăm ngàn dòng như `fraudTrain.csv`, việc tính toán khoảng cách này cực kỳ tốn kém tài nguyên và thời gian. Nó còn làm tăng kích thước dữ liệu đầu vào cho model.
+
+*   **Code của bạn (Nhanh):** Sử dụng `scale_pos_weight`.
+    ```python
+    clf_xgb = xgb.XGBClassifier(..., scale_pos_weight=scale_weight, ...)
+    ```
+    *   **Cơ chế:** Không sinh ra dữ liệu mới. Nó chỉ đơn giản là nhân một hệ số phạt vào công thức toán học khi tính lỗi (Loss Function).
+    *   **Hậu quả:** Tốc độ xử lý **nhanh như không xử lý imbalance**, tốn 0 giây để chuẩn bị.
+
+### 2. Sklearn GradientBoosting vs. LightGBM/XGBoost
+*   **Code mẫu (Chậm):** Sử dụng `sklearn.ensemble.GradientBoostingClassifier`.
+    *   Đây là thư viện cũ của Sklearn, chủ yếu chạy đơn luồng (hoặc tối ưu kém hơn) và không sử dụng kỹ thuật Histogram-based để tăng tốc.
+*   **Code của bạn (Nhanh):** Sử dụng `LightGBM` và `XGBoost`.
+    *   Hai thư viện này được viết bằng C++, tối ưu hóa đến tận "chân răng" cho phần cứng, sử dụng đa luồng (`n_jobs=-1`) và thuật toán Histogram để xử lý dữ liệu cực nhanh.
+
+### Tóm lại
+Cách tiếp cận này **chuẩn công nghiệp (Industry Standard)** hiện nay:
+1.  Dùng **LightGBM/XGBoost** (Nhanh & Mạnh).
+2.  Dùng **Class Weights** thay vì SMOTE (Hiệu quả & Không tốn tài nguyên).
+3.  Feature Engineering tập trung (Vectorized) thay vì tính toán thống kê rườm rà.
