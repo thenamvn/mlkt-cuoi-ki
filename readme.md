@@ -1,4 +1,6 @@
-Methodology – Fraud Detection with Highly Imbalanced Data
+# Methodology – Fraud Detection with Credit Card Transactions Fraud Detection Dataset (Highly Imbalanced Data)
+
+### Dataset URL: [Click here](https://www.kaggle.com/datasets/kartik2112/fraud-detection/discussion?sort=undefined)
 =========================================================
 
 1\. Xử lý mất cân bằng dữ liệu bằng Cost-Sensitive Learning
